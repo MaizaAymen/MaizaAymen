@@ -99,14 +99,13 @@ How the pieces of my stack connect: clients call APIs over REST, APIs own their 
 
 ## 🚀 Featured builds
 
-| Project | What it is | Stack (as in the diagram) |
+| Project | What it is | Stack |
 |---|---|---|
-| [**IkriMinDarek**](https://github.com/MaizaAymen/IkriMinDarek) | Property rental platform with real-time chat | React Native → Express → PostgreSQL |
-| [**NovaUni**](https://github.com/MaizaAymen/NovaUni) | Learning platform with AI-generated content & quizzes | JavaScript · AI |
-| [**Learnflow**](https://github.com/MaizaAymen/Learnflow) | Learning management system | JavaScript |
-| [**Inboxo**](https://github.com/MaizaAymen/Inboxo) | REST API to send, read and manage Gmail | FastAPI |
-| [**LLM API**](https://github.com/MaizaAymen/LLM_Acces_with_FastAPI_and_Ollama) | HTTP access to a local LLM, containerised | FastAPI → Ollama · Docker |
-| [**OasisQuest**](https://github.com/MaizaAymen/OasisQuestPlate) | Marketplace for premium dates | Symfony → MySQL |
+| [**OmniLearn**](https://github.com/MaizaAymen/OmniLearn) | Multi-tenant coding-education platform: in-browser code editor, live coding sessions, a Socratic AI mentor and a PDF assistant that grounds every answer in the document (RAG), with Stripe billing and 2FA | React · Express · PostgreSQL · Socket.IO · LangChain · Chroma · Groq |
+| [**Learnflow**](https://github.com/MaizaAymen/Learnflow) | Learning management system for students, teachers, courses and schedules | React · Express · PostgreSQL · JWT |
+| [**SummarAIze**](https://github.com/MaizaAymen/SalamHack-HrissaDev) | SalamHack 2025 hackathon project (team HrissaDev): chat with PDFs, generate summaries and quizzes | React · Express · MongoDB · Tailwind |
+| [**LLM API**](https://github.com/MaizaAymen/LLM_Acces_with_FastAPI_and_Ollama) | HTTP API giving apps access to a locally hosted LLM, shipped as a container | FastAPI · Ollama · Docker |
+| [**Inboxo**](https://github.com/MaizaAymen/Inboxo) | REST API to send and fetch Gmail messages programmatically | Python · FastAPI |
 
 ## 📈 Contributions
 
