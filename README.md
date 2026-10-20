@@ -101,16 +101,20 @@ timeline
 
 ## 📈 Contributions
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/chart-activity-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/chart-activity-light.svg">
+  <img src="assets/chart-activity-dark.svg" alt="Area chart: daily GitHub contributions over the last 12 months" width="100%">
+</picture>
+
 <table>
 <tr>
-<td width="62%" valign="top">
-
-<img src="https://github-readme-activity-graph.vercel.app/graph?username=MaizaAymen&bg_color=0d1117&color=58a6ff&line=58a6ff&point=f78166&area=true&area_color=1f6feb&hide_border=true&radius=10" width="100%" alt="Daily contribution graph" />
+<td width="50%" valign="top">
 
 <img src="https://streak-stats.demolab.com?user=MaizaAymen&theme=github-dark-blue&hide_border=true&background=0d1117" width="100%" alt="Contribution streak" />
 
 </td>
-<td width="38%" valign="top">
+<td width="50%" valign="top">
 
 ### ⚡ Recent activity
 

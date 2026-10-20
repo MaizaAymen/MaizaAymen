@@ -6,7 +6,7 @@ import { writeFileSync } from "node:fs";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  Bar, BarChart, CartesianGrid, LabelList, ReferenceLine, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, ReferenceDot, ReferenceLine, XAxis, YAxis,
 } from "recharts";
 
 const USER = "MaizaAymen";
@@ -60,7 +60,27 @@ async function collect() {
   for (const r of own) if (r.language) langCount.set(r.language, (langCount.get(r.language) ?? 0) + 1);
   const langs = [...langCount].map(([lang, n]) => ({ lang, n })).sort((a, b) => b.n - a.n).slice(0, 7);
 
-  return { quarters, langs, total: own.length, withLang: [...langCount.values()].reduce((a, b) => a + b, 0) };
+  return { quarters, langs, total: own.length, withLang: [...langCount.values()].reduce((a, b) => a + b, 0),
+           days: await contributions() };
+}
+
+// Daily contribution counts from the public profile calendar (no token needed).
+// Each day cell carries data-date + an id; its <tool-tip for="id"> holds "N contributions on ...".
+async function contributions() {
+  const res = await fetch(`https://github.com/users/${USER}/contributions`, { headers: { "User-Agent": USER } });
+  if (!res.ok) throw new Error(`${res.status} contributions calendar`);
+  const html = await res.text();
+  const dateById = new Map();
+  for (const m of html.matchAll(/data-date="(\d{4}-\d\d-\d\d)"\s+id="([^"]+)"/g)) dateById.set(m[2], m[1]);
+  const days = [];
+  for (const m of html.matchAll(/<tool-tip[^>]*for="([^"]+)"[^>]*>([^<]*)<\/tool-tip>/g)) {
+    const date = dateById.get(m[1]);
+    if (!date) continue;
+    const n = /^(\d+) contribution/.exec(m[2]);
+    days.push({ date, n: n ? Number(n[1]) : 0 });
+  }
+  if (days.length < 300) throw new Error(`calendar parse failed (${days.length} days) — GitHub markup changed?`);
+  return days.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // ── chart frame ─────────────────────────────────────────────────────────
@@ -128,9 +148,46 @@ function languages(t, data, withLang) {
   });
 }
 
+// ── 3. daily contributions, last 12 months (area, single series) ───────
+function activity(t, days) {
+  const total = days.reduce((s, d) => s + d.n, 0);
+  const last90 = days.slice(-90).reduce((s, d) => s + d.n, 0);
+  const active = days.filter((d) => d.n > 0).length;
+  const peak = days.reduce((a, b) => (b.n > a.n ? b : a));
+  const fmt = (iso, opts) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", ...opts });
+  const step = peak.n > 20 ? 10 : 5;
+  const top = Math.ceil(peak.n / step) * step;
+  const ticks = Array.from({ length: top / step + 1 }, (_, i) => i * step);
+  // one x tick per month, on the first day of each month in range
+  const monthTicks = days.filter((d) => d.date.endsWith("-01")).map((d) => d.date);
+  const width = 1200, height = 330;
+  const chart = h(AreaChart, { width, height: height - 110, data: days, margin: { top: 24, right: 36, bottom: 8, left: 8 } },
+    h("defs", null,
+      h("linearGradient", { id: `wash-${t.surface.slice(1)}`, x1: 0, y1: 0, x2: 0, y2: 1 },
+        h("stop", { offset: "0%", stopColor: t.series, stopOpacity: 0.22 }),
+        h("stop", { offset: "100%", stopColor: t.series, stopOpacity: 0.02 }))),
+    h(CartesianGrid, { vertical: false, stroke: t.grid, strokeWidth: 1 }),
+    h(XAxis, { dataKey: "date", ticks: monthTicks, tick: tick(t), tickLine: false, axisLine: { stroke: t.axis },
+               tickFormatter: (v) => fmt(v, { month: "short" }) + (v.slice(5, 7) === "01" ? ` ’${v.slice(2, 4)}` : "") }),
+    h(YAxis, { tick: tick(t), tickLine: false, axisLine: false, width: 34, domain: [0, top], ticks }),
+    h(Area, { type: "monotone", dataKey: "n", stroke: t.series, strokeWidth: 2, fill: `url(#wash-${t.surface.slice(1)})`,
+              isAnimationActive: false, dot: false, activeDot: false }),
+    // label the single busiest day only
+    h(ReferenceDot, { x: peak.date, y: peak.n, r: 4, fill: t.series, stroke: t.surface, strokeWidth: 2,
+                      label: { value: `${peak.n} on ${fmt(peak.date, { month: "short", day: "numeric" })}`,
+                               position: "top", fill: t.ink, fontSize: 12, fontWeight: 700 } }));
+  return frame(t, {
+    width, height, chart,
+    title: "Daily contributions",
+    subtitle: `${total.toLocaleString("en-US")} in the last 12 months · ${last90} in the last 90 days · active on ${active} days`,
+    footnote: `Source: public GitHub contribution calendar · ${fmt(days[0].date, { month: "short", day: "numeric", year: "numeric" })} – ${fmt(days.at(-1).date, { month: "short", day: "numeric", year: "numeric" })} · auto-updated daily`,
+  });
+}
+
 const d = await collect();
 for (const [name, t] of Object.entries(THEMES)) {
   writeFileSync(new URL(`chart-cadence-${name}.svg`, OUT), cadence(t, d.quarters));
   writeFileSync(new URL(`chart-languages-${name}.svg`, OUT), languages(t, d.langs, d.withLang));
+  writeFileSync(new URL(`chart-activity-${name}.svg`, OUT), activity(t, d.days));
 }
 console.log(`ok: ${d.total} repos, ${d.quarters.length} quarters, langs`, d.langs.map((l) => `${l.lang}:${l.n}`).join(" "));
