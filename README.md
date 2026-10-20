@@ -48,7 +48,7 @@ I work across Spring Boot, Symfony, FastAPI, Angular, React, Flutter and LangCha
 
 #### Full-Stack & AI Developer · Independent & open-source projects
 `2024 — Present` · Tunisia / Remote
-- Designed, built and published close to 60 projects across web, mobile and AI, moving from static sites to multi-service systems in under two years.
+- Designed, built and published 35+ projects across web, mobile and AI, moving from static sites to multi-service systems in under two years.
 - Built **IkriMinDarek**, a property-rental platform (React Native, Express, PostgreSQL) with listings, search, bookings and real-time landlord messaging.
 - Delivered LLM services: a containerised **FastAPI + Ollama** API for model access, a **LangChain** generation tool on LLaMA 3, and **Inboxo**, a REST API for sending and managing Gmail.
 - Built education platforms **NovaUni** and **Learnflow**, covering course management, AI-generated content, quizzes and administration workflows.
