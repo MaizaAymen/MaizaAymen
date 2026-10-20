@@ -1,9 +1,10 @@
 """
-Builds the neofetch-style terminal card (assets/neofetch-dark.svg + assets/neofetch-light.svg)
-from live GitHub data. Run locally with `python scripts/build_card.py` or let the
-GitHub Action refresh it daily. Set GITHUB_TOKEN to avoid API rate limits.
+Builds the header card (assets/neofetch-dark.svg + assets/neofetch-light.svg):
+a portrait drawn with lines of code, next to a rotating programming quote.
+Run locally with `python scripts/build_card.py` or let the GitHub Action refresh
+it daily (picks up a new avatar automatically). GITHUB_TOKEN avoids rate limits.
 
-Edit the PROFILE section below to change the static text.
+Edit QUOTES below to change the quotes.
 """
 import http.client
 import io
@@ -11,10 +12,9 @@ import json
 import math
 import os
 import re
+import textwrap
 import time
 import urllib.request
-from collections import Counter
-from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -22,43 +22,26 @@ from PIL import Image, ImageFilter, ImageOps
 
 USER = "MaizaAymen"
 ROOT = Path(__file__).resolve().parent.parent
-WIDTH_CHARS = 60  # width of the right-hand info column, in characters
-ROLE = "Full-Stack Engineer"  # caption under the portrait
+NAME = "Aymen Maiza"
+TAGLINE = "Software Engineering Student · Full-Stack & AI"
+ROLE = "Engineering Student"  # caption under the portrait
 
-# ── PROFILE (static lines) ─────────────────────────────────────────────
-# ("key", "value") pairs; None = blank line; ("#", "Title") = section header
-PROFILE = [
-    ("OS", "Windows 10, Linux, Android"),
-    ("Uptime", "{uptime}"),
-    ("Host", "Tunisia"),
-    ("Kernel", "Full-Stack & AI Software Engineer"),
-    ("Focus", "Scalable APIs, LLM apps, Cloud-native"),
-    ("IDE", "VS Code, IntelliJ IDEA, Android Studio"),
-    None,
-    ("Languages.Programming", "JavaScript, Python, Java, PHP"),
-    ("Languages.Computer", "HTML, CSS, SQL, JSON, YAML"),
-    ("Languages.Real", "Arabic, French, English"),
-    None,
-    ("Stack.Web", "Angular, React, Symfony, Spring Boot"),
-    ("Stack.AI", "FastAPI, LangChain, Ollama, Streamlit"),
-    ("Stack.Mobile", "Flutter, React Native"),
-    ("Stack.Tools", "Docker, Git, MySQL, PostgreSQL"),
-    None,
-    ("#", "Contact"),
-    ("Portfolio", "portfolio-teal-nine-41.vercel.app"),
-    ("GitHub", "github.com/MaizaAymen"),
-    None,
-    ("#", "GitHub Stats"),
+# (quote, author) — shown one after another; the first one is what non-animating viewers see
+QUOTES = [
+    ("First, solve the problem.\nThen, write the code.", "John Johnson"),
+    ("Simplicity is prerequisite for reliability.", "Edsger W. Dijkstra"),
+    ("Talk is cheap. Show me the code.", "Linus Torvalds"),
 ]
+SECONDS_PER_QUOTE = 6
 
 THEMES = {
-    "dark": dict(bg="#0d1117", panel="#161b22", border="#30363d", text="#c9d1d9",
-                 key="#ffa657", value="#a5d6ff", dots="#484f58", ascii="#c9d1d9",
-                 green="#3fb950", red="#f85149", bar_empty="#21262d"),
-    "light": dict(bg="#ffffff", panel="#f6f8fa", border="#d0d7de", text="#24292f",
-                  key="#953800", value="#0a3069", dots="#afb8c1", ascii="#24292f",
-                  green="#1a7f37", red="#cf222e", bar_empty="#eaeef2"),
+    "dark": dict(panel="#161b22", border="#30363d", text="#e6edf3", muted="#8b949e",
+                 faint="#484f58", accent="#58a6ff", prompt="#3fb950"),
+    "light": dict(panel="#f6f8fa", border="#d0d7de", text="#1f2328", muted="#59636e",
+                  faint="#afb8c1", accent="#0969da", prompt="#1a7f37"),
 }
+SANS = "'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif"
+MONO = "Consolas, 'SF Mono', Menlo, 'DejaVu Sans Mono', monospace"
 
 
 # ── data ───────────────────────────────────────────────────────────────
@@ -80,43 +63,8 @@ def api(url):
 
 def collect():
     user = api(f"https://api.github.com/users/{USER}")
-    repos, page = [], 1
-    while True:
-        batch = api(f"https://api.github.com/users/{USER}/repos?per_page=100&page={page}")
-        repos += batch
-        if len(batch) < 100:
-            break
-        page += 1
-    own = [r for r in repos if not r["fork"]]
-    commits = api(f"https://api.github.com/search/commits?q=author:{USER}")["total_count"]
-    langs = Counter(r["language"] for r in own if r["language"])
-    return dict(
-        user=user,
-        repos=user["public_repos"],
-        own=len(own),
-        forks=len(repos) - len(own),
-        stars=sum(r["stargazers_count"] for r in repos),
-        forked_by=sum(r["forks_count"] for r in own),
-        commits=commits,
-        followers=user["followers"],
-        langs=langs.most_common(6),
-        lang_total=sum(langs.values()),
-        avatar=api(user["avatar_url"] + "&s=200" if "?" in user["avatar_url"] else user["avatar_url"] + "?s=200"),
-    )
-
-
-def uptime(created):
-    start = datetime.fromisoformat(created.replace("Z", "+00:00"))
-    now = datetime.now(timezone.utc)
-    months = (now.year - start.year) * 12 + now.month - start.month
-    if now.day < start.day:
-        months -= 1
-    anchor_m = start.month + months
-    anchor = start.replace(year=start.year + (anchor_m - 1) // 12, month=(anchor_m - 1) % 12 + 1)
-    days = (now - anchor).days
-    y, m = divmod(months, 12)
-    plural = lambda n, w: f"{n} {w}{'' if n == 1 else 's'}"
-    return f"{plural(y, 'year')}, {plural(m, 'month')}, {plural(days, 'day')}"
+    sep = "&" if "?" in user["avatar_url"] else "?"
+    return dict(user=user, avatar=api(f"{user['avatar_url']}{sep}s=200"))
 
 
 # ── code portrait ──────────────────────────────────────────────────────
@@ -124,7 +72,7 @@ def uptime(created):
 # its opacity follows how dark the avatar is at that spot (hair, eyes and
 # headphones come out strongest). Syntax colours are kept so it still reads as code.
 CODE = """
-const engineer = { name: "Maiza Aymen", role: "Full-Stack & AI Engineer", base: "Tunisia" };
+const engineer = { name: "Maiza Aymen", role: "Software Engineering Student", base: "Tunisia" };
 const stack = { web: ["Angular", "React", "Symfony", "Spring Boot"], ai: ["FastAPI", "LangChain", "Ollama"],
   mobile: ["Flutter", "React Native"], data: ["PostgreSQL", "MySQL", "Kafka"], ops: ["Docker", "Git"] };
 async function ship(idea) { const spec = await design(idea); const api = build(spec, stack.web);
@@ -162,7 +110,7 @@ def smoothstep(a, b, v):
     return v * v * (3 - 2 * v)
 
 
-def code_portrait(png, theme, x0, y0, size, cols=74, rows=46):
+def code_portrait(png, theme, x0, y0, size, cols=64, rows=40):
     img = Image.open(io.BytesIO(png)).convert("RGB")
     img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=140)).resize((cols, rows), Image.LANCZOS)
     lum = ImageOps.autocontrast(img.convert("L"), cutoff=1)
@@ -171,7 +119,7 @@ def code_portrait(png, theme, x0, y0, size, cols=74, rows=46):
     lh = size / rows
     colors = CODE_COLORS[theme]
     stream = code_stream()
-    out = [f'<g font-size="{lh * 1.12:.2f}" font-weight="800">']
+    out = [f'<g font-family="{MONO}" font-size="{lh * 1.12:.2f}" font-weight="800">']
     for y in range(rows):
         spans, run, run_key = [], "", None
         for x in range(cols):
@@ -204,92 +152,70 @@ def code_portrait(png, theme, x0, y0, size, cols=74, rows=46):
 
 
 # ── svg ────────────────────────────────────────────────────────────────
-def info_lines(d):
-    """Returns a list of lines; each line is a list of (text, role) spans."""
-    login = f"{USER.lower()}@github"
-    out = [[(login, "value"), (" " + "─" * (WIDTH_CHARS - len(login) - 1), "dots")]]
-    for item in PROFILE:
-        if item is None:
-            out.append([(". ", "dots")])
-        elif item[0] == "#":
-            title = f"- {item[1]} "
-            out.append([(title, "text"), ("─" * (WIDTH_CHARS - len(title)), "dots")])
-        else:
-            key, val = item
-            val = val.format(uptime=uptime(d["user"]["created_at"]))
-            fill = WIDTH_CHARS - len(key) - len(val) - 5
-            out.append([(". ", "dots"), (key, "key"), (":", "text"),
-                        (" " + "." * max(fill, 1) + " ", "dots"), (val, "value")])
-
-    def pair(k1, v1, k2, v2, half=33):
-        left = WIDTH_CHARS - half
-        fill1 = half - len(k1) - len(v1) - 5
-        fill2 = left - len(k2) - len(v2) - 6
-        return [(". ", "dots"), (k1, "key"), (":", "text"), (" " + "." * max(fill1, 1) + " ", "dots"),
-                (v1, "value"), (" | ", "text"), (k2, "key"), (":", "text"),
-                (" " + "." * max(fill2, 1) + " ", "dots"), (v2, "value")]
-
-    out.append(pair("Repos", f"{d['own']} {{Forked: {d['forks']}}}", "Stars", str(d["stars"])))
-    out.append(pair("Commits", f"{d['commits']:,}", "Followers", str(d["followers"])))
-    out.append(pair("Top lang", d["langs"][0][0], "Since", d["user"]["created_at"][:4]))
+def quote_block(t, x, y, text, author):
+    # "\n" in a quote forces a break; longer parts wrap on their own
+    lines = [line for part in text.split("\n") for line in textwrap.wrap(part, 34)]
+    out = [f'<text x="{x - 4}" y="{y + 40}" font-family="Georgia, serif" font-size="54" fill="{t["accent"]}" '
+           f'opacity=".35">“</text>']
+    for i, line in enumerate(lines):
+        out.append(f'<text x="{x}" y="{y + 56 + i * 29}" font-family="{SANS}" font-size="22" font-weight="600" '
+                   f'fill="{t["text"]}">{escape(line)}</text>')
+    ay = y + 56 + len(lines) * 29 + 6
+    out.append(f'<rect x="{x}" y="{ay - 4}" width="28" height="2" fill="{t["accent"]}"/>'
+               f'<text x="{x + 38}" y="{ay + 2}" font-family="{SANS}" font-size="15" fill="{t["muted"]}">'
+               f'{escape(author)}</text>')
     return out
 
 
 def render(d, theme):
     t = THEMES[theme]
-    fs, lh, cw = 13, 18, 7.8  # font size, line height, monospace char width
-    info = info_lines(d)
-    pad = 28
-    art_w = 340
-    info_x = pad + art_w + 36
-    width = int(info_x + WIDTH_CHARS * cw + pad)
-    height = int(pad * 2 + 36 + len(info) * lh)
-    art_y = pad + 36 + (len(info) * lh - art_w - 30) / 2
+    w, h, pad = 820, 352, 24
+    art = 236
+    art_x, art_y = pad + 8, 66
+    qx = art_x + art + 48
+    n, period = len(QUOTES), SECONDS_PER_QUOTE * len(QUOTES)
+    slot = 100 / n
 
-    s = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
-         f'viewBox="0 0 {width} {height}" font-family="Consolas, \'SF Mono\', Menlo, \'DejaVu Sans Mono\', monospace" '
-         f'font-size="{fs}">',
-         "<style>"
-         f".key{{fill:{t['key']}}}.value{{fill:{t['value']}}}.text{{fill:{t['text']}}}"
-         f".dots{{fill:{t['dots']}}}.ascii{{fill:{t['ascii']}}}"
-         # 'backwards' fill: lines stay visible in viewers that don't animate
-         "@keyframes fade{from{opacity:0;transform:translateX(-6px)}}"
-         ".ln{animation:fade .35s ease backwards}"
-         "@keyframes blink{50%{opacity:0}}.cursor{animation:blink 1s step-end infinite}"
+    s = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
+         f'font-family="{MONO}">',
+         "<style>",
+         # quote i is visible during its slot; quote 0 is visible by default so non-animating
+         # viewers still see one quote, the others start hidden
+         f"@keyframes q0{{0%,{slot - 4:.1f}%{{opacity:1}}{slot:.1f}%,{100 - 4:.1f}%{{opacity:0}}100%{{opacity:1}}}}",
+         *[f".q{i}{{opacity:0;animation:qi{i} {period}s infinite}}"
+           f"@keyframes qi{i}{{0%,{i * slot:.1f}%{{opacity:0}}{i * slot + 4:.1f}%,{(i + 1) * slot - 4:.1f}%{{opacity:1}}"
+           f"{(i + 1) * slot:.1f}%,100%{{opacity:0}}}}" for i in range(1, n)],
+         f".q0{{animation:q0 {period}s infinite}}",
+         "@keyframes blink{50%{opacity:0}}.cursor{animation:blink 1s step-end infinite}",
          "</style>",
-         f'<rect width="{width}" height="{height}" rx="12" fill="{t["panel"]}" stroke="{t["border"]}"/>',
-         # window chrome
-         f'<circle cx="{pad}" cy="{pad}" r="6" fill="#ff5f56"/>'
-         f'<circle cx="{pad + 20}" cy="{pad}" r="6" fill="#ffbd2e"/>'
-         f'<circle cx="{pad + 40}" cy="{pad}" r="6" fill="#27c93f"/>',
-         f'<text x="{width / 2}" y="{pad + 4}" text-anchor="middle" class="dots">{USER.lower()}@github: ~ $ neofetch</text>']
+         f'<rect x=".5" y=".5" width="{w - 1}" height="{h - 1}" rx="14" fill="{t["panel"]}" stroke="{t["border"]}"/>',
+         f'<circle cx="{pad + 4}" cy="{pad + 4}" r="6" fill="#ff5f56"/>'
+         f'<circle cx="{pad + 24}" cy="{pad + 4}" r="6" fill="#ffbd2e"/>'
+         f'<circle cx="{pad + 44}" cy="{pad + 4}" r="6" fill="#27c93f"/>',
+         f'<text x="{w / 2}" y="{pad + 8}" text-anchor="middle" font-size="13" fill="{t["faint"]}">'
+         f'{USER.lower()}@github: ~ $ cat motto.md</text>']
 
-    # textLength pins every line to the grid whatever monospace font the viewer has
-    fit = lambda n: f'textLength="{n * cw:.1f}" lengthAdjust="spacingAndGlyphs"'
-    s += code_portrait(d["avatar"], theme, pad, art_y, art_w)
-    # viewfinder corner brackets + caption around the portrait
-    b, x1, y1, x2, y2 = 18, pad - 6, art_y - 6, pad + art_w + 6, art_y + art_w + 6
+    s += code_portrait(d["avatar"], theme, art_x, art_y, art)
+    b, x1, y1, x2, y2 = 14, art_x - 6, art_y - 6, art_x + art + 6, art_y + art + 6
     s.append(f'<path d="M{x1} {y1 + b}V{y1}H{x1 + b}M{x2 - b} {y1}H{x2}V{y1 + b}'
              f'M{x2} {y2 - b}V{y2}H{x2 - b}M{x1 + b} {y2}H{x1}V{y2 - b}" '
-             f'fill="none" stroke="{t["value"]}" stroke-width="1.5" opacity=".7"/>')
-    s.append(f'<text x="{pad + art_w / 2}" y="{y2 + 24}" text-anchor="middle" class="dots" '
-             f'letter-spacing="2">// {escape(d["user"]["name"].upper())} · {escape(ROLE.upper())}</text>')
+             f'fill="none" stroke="{t["accent"]}" stroke-width="1.5" opacity=".7"/>')
+    s.append(f'<text x="{art_x + art / 2}" y="{y2 + 20}" text-anchor="middle" font-size="11" fill="{t["faint"]}" '
+             f'letter-spacing="1">// {escape(NAME.upper())} · {escape(ROLE.upper())}</text>')
 
-    y0 = pad + 36 + lh * 0.75
-    for i, spans in enumerate(info):
-        y = y0 + i * lh
-        delay = f'style="animation-delay:{i * 0.05:.2f}s"'
-        parts = [f'<g class="ln" {delay}>']
-        text_buf, col = [], 0
-        for text, role in spans:
-            text_buf.append(f'<tspan class="{role}">{escape(text)}</tspan>')
-            col += len(text)
-        parts.append(f'<text x="{info_x}" y="{y:.1f}" {fit(col)} xml:space="preserve">{"".join(text_buf)}</text>')
-        parts.append("</g>")
-        s.append("".join(parts))
+    # name + role, then the rotating quote underneath
+    s.append('<defs><linearGradient id="name" x1="0" y1="0" x2="1" y2="0">'
+             '<stop offset="0" stop-color="#58a6ff"/><stop offset=".55" stop-color="#a371f7"/>'
+             '<stop offset="1" stop-color="#3fb950"/></linearGradient></defs>')
+    s.append(f'<text x="{qx}" y="98" font-family="{SANS}" font-size="40" font-weight="800" letter-spacing="-1" '
+             f'fill="url(#name)">{escape(NAME)}</text>')
+    s.append(f'<text x="{qx}" y="124" font-size="13" fill="{t["muted"]}">{escape(TAGLINE)}</text>')
+    s.append(f'<rect x="{qx}" y="140" width="{w - qx - 40}" height="1" fill="{t["border"]}"/>')
+    for i, (text, author) in enumerate(QUOTES):
+        s.append(f'<g class="q{i}">' + "".join(quote_block(t, qx, 146, text, author)) + "</g>")
 
-    last = y0 + len(info) * lh
-    s.append(f'<text x="{info_x}" y="{last:.1f}" class="value">$ <tspan class="cursor">█</tspan></text>')
+    s.append(f'<text x="{qx}" y="{h - 34}" font-size="14" fill="{t["prompt"]}">$ <tspan fill="{t["muted"]}">'
+             f'keep shipping</tspan> <tspan class="cursor" fill="{t["accent"]}">█</tspan></text>')
     s.append("</svg>")
     return "\n".join(s)
 
@@ -299,7 +225,7 @@ def main():
     (ROOT / "assets").mkdir(exist_ok=True)
     for theme in THEMES:
         (ROOT / "assets" / f"neofetch-{theme}.svg").write_text(render(d, theme), encoding="utf-8")
-    print(f"ok: {d['own']} repos, {d['commits']} commits, {d['stars']} stars, langs={d['langs']}")
+    print("ok: header card with", len(QUOTES), "quotes")
 
 
 if __name__ == "__main__":

@@ -99,12 +99,12 @@ def banner(paths, t):
     # name block
     x = 260
     s.append(f'<text x="{x}" y="112" font-size="52" font-weight="800" fill="{t["text"]}" letter-spacing="-1">Maiza Aymen</text>')
-    s.append(f'<text x="{x}" y="150" font-size="22" font-weight="600" fill="url(#brand)">Full-Stack &amp; AI Software Engineer</text>')
+    s.append(f'<text x="{x}" y="150" font-size="22" font-weight="600" fill="url(#brand)">Software Engineering Student · Full-Stack &amp; AI</text>')
     s.append(f'<text x="{x}" y="184" font-family="{MONO}" font-size="14" fill="{t["muted"]}">'
              f'Web · APIs · LLM apps · Mobile · Cloud-native  —  Tunisia</text>')
     s.append(f'<circle cx="{x + 7}" cy="219" r="6" fill="{t["accent2"]}" class="pulse"/>')
     s.append(f'<text x="{x + 22}" y="224" font-family="{MONO}" font-size="14" fill="{t["accent2"]}">'
-             f'open to collaboration &amp; new challenges</text>')
+             f'open to internships &amp; collaboration</text>')
 
     # logo tiles, 2 rows x 5
     slugs = ["angular", "react", "springboot", "fastapi", "python",
