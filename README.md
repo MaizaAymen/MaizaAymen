@@ -96,30 +96,6 @@ How the pieces of my stack connect: clients call APIs over REST, APIs own their 
 
 <sub>Charts are rendered with <b>Recharts</b> from live GitHub API data (<code>charts/build.mjs</code>) and refreshed daily.</sub>
 
-## 🛣️ Journey
-
-The story behind the cadence chart: each quarter, what I learned and shipped.
-
-```mermaid
-timeline
-    title Built in public since 2024
-    2024 Q2 : First commits — HTML / CSS
-            : OpenCV face-detection project
-    2024 Q3-Q4 : PHP + MySQL auth systems
-               : Symfony AuthFlow
-               : Angular café management system
-    2025 Q1 : React apps & real-time Social Chat
-            : HostCycle
-    2025 Q2 : AI turn — FastAPI, LangChain, Ollama LLM API
-            : Docker, Java Swing, Spring Boot car rental
-            : NovaUni AI learning platform
-    2025 Q3 : Inboxo — FastAPI Gmail API
-            : Kafka, Flutter, Learnflow LMS
-    2025 Q4 : IkriMinDarek — React Native + Express + PostgreSQL
-            : MCP server, Flutter geography atlas
-    2026 : SilentVoice
-         : OmniLearn
-```
 
 ## 🚀 Featured builds
 
